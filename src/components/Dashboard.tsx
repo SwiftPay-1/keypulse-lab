@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { AnimatedBackground } from "./AnimatedBackground";
 import { ProviderSelector } from "./ProviderSelector";
 import { CodeOutput } from "./CodeOutput";
 import { HistoryPanel, type HistoryEntry } from "./HistoryPanel";
@@ -8,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Key, ArrowLeft, Check, X, AlertTriangle,
-  Loader2, ChevronDown, ExternalLink
+  Loader2, ChevronDown, ExternalLink, Sparkles
 } from "lucide-react";
 
 interface DashboardProps {
@@ -72,12 +71,10 @@ export function Dashboard({ onBack }: DashboardProps) {
     setTestState("testing");
     setTestResult(null);
 
-    // Simulate API test (1-3 seconds)
     const delay = 800 + Math.random() * 2000;
     await new Promise((r) => setTimeout(r, delay));
 
     const responseTime = Math.round(100 + Math.random() * 400);
-    // Simulate: keys starting with "invalid" fail, otherwise succeed
     const isValid = !apiKey.toLowerCase().startsWith("invalid");
 
     if (isValid) {
@@ -96,7 +93,6 @@ export function Dashboard({ onBack }: DashboardProps) {
       toast.error("API Key validation failed");
     }
 
-    // Add to history
     setHistory((prev) => [
       {
         id: crypto.randomUUID(),
@@ -113,135 +109,137 @@ export function Dashboard({ onBack }: DashboardProps) {
   }, [apiKey, provider, selectedModel]);
 
   return (
-    <div className="relative min-h-svh bg-mesh-subtle">
-      <AnimatedBackground subtle />
+    <div className="min-h-svh bg-background">
+      {/* Subtle gradient overlay */}
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[128px]" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-[128px]" />
+      </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-border/50 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="relative z-10 border-b border-border/50 bg-card/50 backdrop-blur-md">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary/50">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-lg font-bold text-gradient-primary">KeyPulse</h1>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <h1 className="text-lg font-bold text-foreground">KeyPulse</h1>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
+      <div className="relative z-10 max-w-5xl mx-auto px-4 py-6 sm:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Main Console */}
-          <div className="lg:col-span-9 space-y-6">
+          <div className="lg:col-span-8 space-y-4">
             {/* API Key Input */}
-            <motion.div
-              className={`glass-strong rounded-2xl p-1 transition-all duration-500 ${
-                testState === "testing" ? "glow-primary" : ""
-              } ${testState === "success" ? "glow-success" : ""} ${
-                testState === "error" ? "glow-error" : ""
-              }`}
-              animate={
-                testState === "testing"
-                  ? {
-                      boxShadow: [
-                        "0 0 0px 0px rgba(139, 92, 246, 0)",
-                        "0 0 20px 2px rgba(139, 92, 246, 0.3)",
-                        "0 0 0px 0px rgba(139, 92, 246, 0)",
-                      ],
-                    }
-                  : {}
-              }
-              transition={testState === "testing" ? { repeat: Infinity, duration: 1.5 } : {}}
-            >
-              <div className="flex items-center gap-3 px-6 py-4">
-                <Key className="w-5 h-5 text-muted-foreground shrink-0" />
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Enter your API key..."
-                  className="flex-1 bg-transparent text-lg font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
-                  onKeyDown={(e) => e.key === "Enter" && simulateTest()}
-                />
-              </div>
-            </motion.div>
-
-            {/* Provider + Model Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
-                  Provider
-                </label>
-                <ProviderSelector selected={provider} onSelect={(p) => { setProvider(p); setModel(p.models[0]); setCustomModel(""); }} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
-                  Model
-                </label>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowModelDropdown(!showModelDropdown)}
-                    className="w-full glass-strong rounded-xl px-4 py-3 flex items-center justify-between text-left hover:border-primary/30 transition-colors"
-                    disabled={!provider}
-                  >
-                    <span className={`text-sm ${selectedModel ? "text-foreground font-medium font-mono" : "text-muted-foreground"}`}>
-                      {selectedModel || "Select a model..."}
-                    </span>
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showModelDropdown ? "rotate-180" : ""}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showModelDropdown && provider && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute z-50 w-full mt-2 glass-strong rounded-xl overflow-hidden"
-                      >
-                        <div className="p-2 border-b border-border/50">
-                          <input
-                            value={customModel}
-                            onChange={(e) => setCustomModel(e.target.value)}
-                            placeholder="Type custom model name..."
-                            className="w-full bg-background/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground font-mono"
-                          />
-                        </div>
-                        <div className="max-h-48 overflow-y-auto p-1">
-                          {provider.models.map((m) => (
-                            <button
-                              key={m}
-                              onClick={() => { setModel(m); setCustomModel(""); setShowModelDropdown(false); }}
-                              className={`w-full px-3 py-2 rounded-lg text-left text-sm font-mono transition-colors ${
-                                model === m && !customModel
-                                  ? "bg-primary/10 text-foreground"
-                                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-                              }`}
-                            >
-                              {m}
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
+                API Key
+              </label>
+              <div
+                className={`rounded-xl border bg-card/60 backdrop-blur-sm transition-all duration-300 ${
+                  testState === "testing" ? "border-primary/50 shadow-[0_0_15px_-3px_hsl(var(--primary)/0.3)]" : 
+                  testState === "success" ? "border-success/50 shadow-[0_0_15px_-3px_hsl(var(--success)/0.3)]" : 
+                  testState === "error" ? "border-destructive/50 shadow-[0_0_15px_-3px_hsl(var(--destructive)/0.3)]" : 
+                  "border-border/50 hover:border-border"
+                }`}
+              >
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <Key className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+                    className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/40"
+                    onKeyDown={(e) => e.key === "Enter" && simulateTest()}
+                  />
                 </div>
+              </div>
+            </div>
+
+            {/* Provider */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
+                Provider
+              </label>
+              <ProviderSelector selected={provider} onSelect={(p) => { setProvider(p); setModel(p.models[0]); setCustomModel(""); }} />
+            </div>
+
+            {/* Model */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
+                Model
+              </label>
+              <div className="relative">
+                <button
+                  onClick={() => setShowModelDropdown(!showModelDropdown)}
+                  className="w-full rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm px-4 py-3 flex items-center justify-between text-left hover:border-border transition-colors"
+                  disabled={!provider}
+                >
+                  <span className={`text-sm ${selectedModel ? "text-foreground font-medium font-mono" : "text-muted-foreground/60"}`}>
+                    {selectedModel || "Select a model..."}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showModelDropdown ? "rotate-180" : ""}`} />
+                </button>
+                <AnimatePresence>
+                  {showModelDropdown && provider && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute z-50 w-full mt-2 rounded-xl border border-border/50 bg-card backdrop-blur-xl shadow-xl overflow-hidden"
+                    >
+                      <div className="p-2 border-b border-border/50">
+                        <input
+                          value={customModel}
+                          onChange={(e) => setCustomModel(e.target.value)}
+                          placeholder="Type custom model name..."
+                          className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground font-mono"
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto p-1">
+                        {provider.models.map((m) => (
+                          <button
+                            key={m}
+                            onClick={() => { setModel(m); setCustomModel(""); setShowModelDropdown(false); }}
+                            className={`w-full px-3 py-2 rounded-lg text-left text-sm font-mono transition-colors ${
+                              model === m && !customModel
+                                ? "bg-primary/10 text-foreground"
+                                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                            }`}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
             {/* Test Button */}
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               onClick={simulateTest}
               disabled={testState === "testing"}
-              className="w-full rounded-xl py-4 text-base font-semibold text-primary-foreground disabled:opacity-60 transition-all relative overflow-hidden border-glow"
+              className="w-full rounded-xl py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60 transition-all mt-2"
               style={{
                 background: "linear-gradient(135deg, hsl(263.4, 70%, 50.4%), hsl(199, 89%, 48%))",
               }}
             >
               {testState === "testing" ? (
                 <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Testing API Key...
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Testing...
                 </span>
               ) : (
                 "Test API Key"
@@ -253,33 +251,33 @@ export function Dashboard({ onBack }: DashboardProps) {
               {testState === "success" && testResult && provider && (
                 <motion.div
                   key="success"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
+                  exit={{ opacity: 0, y: -16 }}
                   className="space-y-4"
                 >
-                  <div className="glass-strong rounded-2xl p-6 border-success/20">
+                  <div className="rounded-xl border border-success/20 bg-card/60 backdrop-blur-sm p-5">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
-                        <Check className="w-5 h-5 text-success" />
+                      <div className="w-9 h-9 rounded-full bg-success/10 flex items-center justify-center">
+                        <Check className="w-4 h-4 text-success" />
                       </div>
                       <div>
-                        <h3 className="text-foreground font-semibold">API Key is Active and Working</h3>
-                        <p className="text-sm text-muted-foreground">Your key has been validated successfully</p>
+                        <h3 className="text-foreground font-semibold text-sm">API Key is Active</h3>
+                        <p className="text-xs text-muted-foreground">Validated successfully</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-background/30 rounded-xl p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Provider</p>
-                        <p className="text-sm font-medium text-foreground">{provider.icon} {provider.name}</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-secondary/30 rounded-lg p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Provider</p>
+                        <p className="text-xs font-medium text-foreground">{provider.icon} {provider.name}</p>
                       </div>
-                      <div className="bg-background/30 rounded-xl p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Model</p>
-                        <p className="text-sm font-medium text-foreground font-mono">{selectedModel}</p>
+                      <div className="bg-secondary/30 rounded-lg p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Model</p>
+                        <p className="text-xs font-medium text-foreground font-mono truncate">{selectedModel}</p>
                       </div>
-                      <div className="bg-background/30 rounded-xl p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Response</p>
-                        <p className="text-sm font-medium text-success">{testResult.responseTime}ms</p>
+                      <div className="bg-secondary/30 rounded-lg p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Response</p>
+                        <p className="text-xs font-medium text-success">{testResult.responseTime}ms</p>
                       </div>
                     </div>
                   </div>
@@ -291,28 +289,28 @@ export function Dashboard({ onBack }: DashboardProps) {
               {testState === "error" && testResult && (
                 <motion.div
                   key="error"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
+                  exit={{ opacity: 0, y: -16 }}
                   className="space-y-4"
                 >
-                  <div className="glass-strong rounded-2xl p-6 border-destructive/20">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
-                        <X className="w-5 h-5 text-destructive" />
+                  <div className="rounded-xl border border-destructive/20 bg-card/60 backdrop-blur-sm p-5">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
+                        <X className="w-4 h-4 text-destructive" />
                       </div>
                       <div>
-                        <h3 className="text-foreground font-semibold">API Key is Invalid or Not Working</h3>
-                        <p className="text-sm text-muted-foreground">{testResult.error}</p>
+                        <h3 className="text-foreground font-semibold text-sm">Invalid or Not Working</h3>
+                        <p className="text-xs text-muted-foreground">{testResult.error}</p>
                       </div>
                     </div>
                   </div>
 
                   {testResult.errorType && errorSuggestions[testResult.errorType] && (
-                    <div className="glass rounded-2xl p-5">
+                    <div className="rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <AlertTriangle className="w-4 h-4 text-accent" />
-                        <h4 className="text-sm font-semibold text-foreground">Fix Suggestions</h4>
+                        <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Fix Suggestions</h4>
                       </div>
                       <ul className="space-y-2">
                         {errorSuggestions[testResult.errorType].map((s, i) => (
@@ -335,7 +333,7 @@ export function Dashboard({ onBack }: DashboardProps) {
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-4">
             <div className="sticky top-8">
               <label className="text-xs font-medium text-muted-foreground mb-3 block uppercase tracking-wider">
                 History

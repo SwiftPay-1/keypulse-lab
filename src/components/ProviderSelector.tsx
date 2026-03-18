@@ -29,16 +29,16 @@ export function ProviderSelector({ selected, onSelect }: ProviderSelectorProps) 
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full glass-strong rounded-xl px-4 py-3 flex items-center justify-between text-left hover:border-primary/30 transition-colors"
+        className="w-full rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm px-4 py-3 flex items-center justify-between text-left hover:border-border transition-colors"
       >
         <span className="flex items-center gap-3">
           {selected ? (
             <>
-              <span className="text-xl">{selected.icon}</span>
-              <span className="text-foreground font-medium">{selected.name}</span>
+              <span className="text-lg">{selected.icon}</span>
+              <span className="text-foreground text-sm font-medium">{selected.name}</span>
             </>
           ) : (
-            <span className="text-muted-foreground">Select a provider...</span>
+            <span className="text-muted-foreground/60 text-sm">Select a provider...</span>
           )}
         </span>
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
@@ -47,14 +47,14 @@ export function ProviderSelector({ selected, onSelect }: ProviderSelectorProps) 
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
-            className="absolute z-50 w-full mt-2 glass-strong rounded-xl overflow-hidden"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.12 }}
+            className="absolute z-50 w-full mt-2 rounded-xl border border-border/50 bg-card backdrop-blur-xl shadow-xl overflow-hidden"
           >
             <div className="p-2 border-b border-border/50">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background/50">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <input
                   autoFocus
