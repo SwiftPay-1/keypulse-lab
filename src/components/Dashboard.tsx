@@ -7,9 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Key, ArrowLeft, Check, X, AlertTriangle,
-  Loader2, ChevronDown, ExternalLink, Sparkles
+  Loader2, ChevronDown, ExternalLink, Sparkles, LogOut, UserCircle
 } from "lucide-react";
 import { ProviderLogo } from "./ProviderLogo";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardProps {
   onBack: () => void;
