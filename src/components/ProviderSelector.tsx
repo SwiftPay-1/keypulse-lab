@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { providers, type Provider } from "@/data/providers";
+import { ProviderLogo } from "./ProviderLogo";
 import { Search, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -34,7 +35,7 @@ export function ProviderSelector({ selected, onSelect }: ProviderSelectorProps) 
         <span className="flex items-center gap-3">
           {selected ? (
             <>
-              <span className="text-lg">{selected.icon}</span>
+              <ProviderLogo provider={selected} size={20} />
               <span className="text-foreground text-sm font-medium">{selected.name}</span>
             </>
           ) : (
@@ -80,7 +81,7 @@ export function ProviderSelector({ selected, onSelect }: ProviderSelectorProps) 
                       : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                   }`}
                 >
-                  <span className="text-lg">{provider.icon}</span>
+                  <ProviderLogo provider={provider} size={18} />
                   <span className="text-sm font-medium">{provider.name}</span>
                 </button>
               ))}

@@ -2,13 +2,14 @@ import { useState, useCallback } from "react";
 import { ProviderSelector } from "./ProviderSelector";
 import { CodeOutput } from "./CodeOutput";
 import { HistoryPanel, type HistoryEntry } from "./HistoryPanel";
-import { type Provider, maskApiKey } from "@/data/providers";
+import { type Provider, maskApiKey, validateApiKey } from "@/data/providers";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Key, ArrowLeft, Check, X, AlertTriangle,
   Loader2, ChevronDown, ExternalLink, Sparkles
 } from "lucide-react";
+import { ProviderLogo } from "./ProviderLogo";
 
 interface DashboardProps {
   onBack: () => void;
@@ -33,12 +34,20 @@ const errorSuggestions: Record<string, { message: string; link?: string }[]> = {
     { message: "Check your provider dashboard for key status" },
   ],
   no_credits: [
-    { message: "Your account may have insufficient credits" },
+    { message: "Your account may have insufficient credits or hit rate limits" },
     { message: "Check your billing page and add credits" },
   ],
   wrong_model: [
     { message: "The selected model may not be available for your plan" },
     { message: "Try a different model from the dropdown" },
+  ],
+  cors: [
+    { message: "This provider blocks direct browser requests (CORS)" },
+    { message: "Use a backend proxy or server-side validation for this provider" },
+  ],
+  unsupported: [
+    { message: "This provider requires custom endpoint configuration" },
+    { message: "Key format appears valid based on prefix" },
   ],
 };
 
@@ -54,7 +63,7 @@ export function Dashboard({ onBack }: DashboardProps) {
 
   const selectedModel = customModel || model;
 
-  const simulateTest = useCallback(async () => {
+  const runTest = useCallback(async () => {
     if (!apiKey.trim()) {
       toast.error("Please enter an API key");
       return;
@@ -71,24 +80,18 @@ export function Dashboard({ onBack }: DashboardProps) {
     setTestState("testing");
     setTestResult(null);
 
-    const delay = 800 + Math.random() * 2000;
-    await new Promise((r) => setTimeout(r, delay));
+    const result = await validateApiKey(provider, apiKey, selectedModel);
 
-    const responseTime = Math.round(100 + Math.random() * 400);
-    const isValid = !apiKey.toLowerCase().startsWith("invalid");
-
-    if (isValid) {
+    if (result.success) {
       setTestState("success");
-      setTestResult({ responseTime });
+      setTestResult({ responseTime: result.responseTime });
       toast.success("API Key is active and working!");
     } else {
-      const errors = ["invalid_key", "expired", "no_credits", "wrong_model"];
-      const errorType = errors[Math.floor(Math.random() * errors.length)];
       setTestState("error");
       setTestResult({
-        responseTime,
-        error: "Authentication failed. The provided API key is invalid.",
-        errorType,
+        responseTime: result.responseTime,
+        error: result.error || "Validation failed",
+        errorType: result.errorType,
       });
       toast.error("API Key validation failed");
     }
@@ -97,11 +100,12 @@ export function Dashboard({ onBack }: DashboardProps) {
       {
         id: crypto.randomUUID(),
         provider: provider.name,
-        providerIcon: provider.icon,
+        providerLogo: provider.logo,
+        providerBrandColor: provider.brandColor,
         model: selectedModel,
         maskedKey: maskApiKey(apiKey),
-        success: isValid,
-        responseTime,
+        success: result.success,
+        responseTime: result.responseTime,
         timestamp: new Date(),
       },
       ...prev.slice(0, 9),
@@ -136,20 +140,21 @@ export function Dashboard({ onBack }: DashboardProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Main Console */}
           <div className="lg:col-span-8 space-y-4">
-            {/* API Key Input */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
-                API Key
-              </label>
-              <div
-                className={`rounded-xl border bg-card/60 backdrop-blur-sm transition-all duration-300 ${
-                  testState === "testing" ? "border-primary/50 shadow-[0_0_15px_-3px_hsl(var(--primary)/0.3)]" : 
-                  testState === "success" ? "border-success/50 shadow-[0_0_15px_-3px_hsl(var(--success)/0.3)]" : 
-                  testState === "error" ? "border-destructive/50 shadow-[0_0_15px_-3px_hsl(var(--destructive)/0.3)]" : 
-                  "border-border/50 hover:border-border"
-                }`}
-              >
-                <div className="flex items-center gap-3 px-4 py-3">
+            {/* Single Card Container for all inputs */}
+            <div
+              className={`rounded-2xl border bg-card/60 backdrop-blur-sm p-5 sm:p-6 space-y-5 transition-all duration-300 ${
+                testState === "testing" ? "border-primary/50 shadow-[0_0_20px_-3px_hsl(var(--primary)/0.25)]" :
+                testState === "success" ? "border-success/50 shadow-[0_0_20px_-3px_hsl(var(--success)/0.25)]" :
+                testState === "error" ? "border-destructive/50 shadow-[0_0_20px_-3px_hsl(var(--destructive)/0.25)]" :
+                "border-border/50"
+              }`}
+            >
+              {/* API Key Input */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
+                  API Key
+                </label>
+                <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-secondary/20 px-4 py-3 focus-within:border-primary/50 transition-colors">
                   <Key className="w-4 h-4 text-muted-foreground shrink-0" />
                   <input
                     type="password"
@@ -157,94 +162,94 @@ export function Dashboard({ onBack }: DashboardProps) {
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
                     className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/40"
-                    onKeyDown={(e) => e.key === "Enter" && simulateTest()}
+                    onKeyDown={(e) => e.key === "Enter" && runTest()}
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Provider */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
-                Provider
-              </label>
-              <ProviderSelector selected={provider} onSelect={(p) => { setProvider(p); setModel(p.models[0]); setCustomModel(""); }} />
-            </div>
-
-            {/* Model */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
-                Model
-              </label>
-              <div className="relative">
-                <button
-                  onClick={() => setShowModelDropdown(!showModelDropdown)}
-                  className="w-full rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm px-4 py-3 flex items-center justify-between text-left hover:border-border transition-colors"
-                  disabled={!provider}
-                >
-                  <span className={`text-sm ${selectedModel ? "text-foreground font-medium font-mono" : "text-muted-foreground/60"}`}>
-                    {selectedModel || "Select a model..."}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showModelDropdown ? "rotate-180" : ""}`} />
-                </button>
-                <AnimatePresence>
-                  {showModelDropdown && provider && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.12 }}
-                      className="absolute z-50 w-full mt-2 rounded-xl border border-border/50 bg-card backdrop-blur-xl shadow-xl overflow-hidden"
-                    >
-                      <div className="p-2 border-b border-border/50">
-                        <input
-                          value={customModel}
-                          onChange={(e) => setCustomModel(e.target.value)}
-                          placeholder="Type custom model name..."
-                          className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground font-mono"
-                        />
-                      </div>
-                      <div className="max-h-48 overflow-y-auto p-1">
-                        {provider.models.map((m) => (
-                          <button
-                            key={m}
-                            onClick={() => { setModel(m); setCustomModel(""); setShowModelDropdown(false); }}
-                            className={`w-full px-3 py-2 rounded-lg text-left text-sm font-mono transition-colors ${
-                              model === m && !customModel
-                                ? "bg-primary/10 text-foreground"
-                                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-                            }`}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              {/* Provider */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
+                  Provider
+                </label>
+                <ProviderSelector selected={provider} onSelect={(p) => { setProvider(p); setModel(p.models[0]); setCustomModel(""); }} />
               </div>
-            </div>
 
-            {/* Test Button */}
-            <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              onClick={simulateTest}
-              disabled={testState === "testing"}
-              className="w-full rounded-xl py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60 transition-all mt-2"
-              style={{
-                background: "linear-gradient(135deg, hsl(263.4, 70%, 50.4%), hsl(199, 89%, 48%))",
-              }}
-            >
-              {testState === "testing" ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Testing...
-                </span>
-              ) : (
-                "Test API Key"
-              )}
-            </motion.button>
+              {/* Model */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase tracking-wider">
+                  Model
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowModelDropdown(!showModelDropdown)}
+                    className="w-full rounded-xl border border-border/50 bg-secondary/20 px-4 py-3 flex items-center justify-between text-left hover:border-border transition-colors focus-within:border-primary/50"
+                    disabled={!provider}
+                  >
+                    <span className={`text-sm ${selectedModel ? "text-foreground font-medium font-mono" : "text-muted-foreground/60"}`}>
+                      {selectedModel || "Select a model..."}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showModelDropdown ? "rotate-180" : ""}`} />
+                  </button>
+                  <AnimatePresence>
+                    {showModelDropdown && provider && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute z-50 w-full mt-2 rounded-xl border border-border/50 bg-card backdrop-blur-xl shadow-xl overflow-hidden"
+                      >
+                        <div className="p-2 border-b border-border/50">
+                          <input
+                            value={customModel}
+                            onChange={(e) => setCustomModel(e.target.value)}
+                            placeholder="Type custom model name..."
+                            className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground font-mono"
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto p-1">
+                          {provider.models.map((m) => (
+                            <button
+                              key={m}
+                              onClick={() => { setModel(m); setCustomModel(""); setShowModelDropdown(false); }}
+                              className={`w-full px-3 py-2 rounded-lg text-left text-sm font-mono transition-colors ${
+                                model === m && !customModel
+                                  ? "bg-primary/10 text-foreground"
+                                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                              }`}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              {/* Test Button */}
+              <motion.button
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={runTest}
+                disabled={testState === "testing"}
+                className="w-full rounded-xl py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60 transition-all"
+                style={{
+                  background: "linear-gradient(135deg, hsl(263.4, 70%, 50.4%), hsl(199, 89%, 48%))",
+                }}
+              >
+                {testState === "testing" ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Validating...
+                  </span>
+                ) : (
+                  "Test API Key"
+                )}
+              </motion.button>
+            </div>
 
             {/* Results */}
             <AnimatePresence mode="wait">
@@ -263,13 +268,16 @@ export function Dashboard({ onBack }: DashboardProps) {
                       </div>
                       <div>
                         <h3 className="text-foreground font-semibold text-sm">API Key is Active</h3>
-                        <p className="text-xs text-muted-foreground">Validated successfully</p>
+                        <p className="text-xs text-muted-foreground">Validated successfully via live request</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="bg-secondary/30 rounded-lg p-3">
                         <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Provider</p>
-                        <p className="text-xs font-medium text-foreground">{provider.icon} {provider.name}</p>
+                        <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                          <ProviderLogo provider={provider} size={14} />
+                          {provider.name}
+                        </p>
                       </div>
                       <div className="bg-secondary/30 rounded-lg p-3">
                         <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Model</p>
@@ -281,7 +289,6 @@ export function Dashboard({ onBack }: DashboardProps) {
                       </div>
                     </div>
                   </div>
-
                   <CodeOutput provider={provider} model={selectedModel} apiKey={apiKey} />
                 </motion.div>
               )}
@@ -301,7 +308,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                       </div>
                       <div>
                         <h3 className="text-foreground font-semibold text-sm">Invalid or Not Working</h3>
-                        <p className="text-xs text-muted-foreground">{testResult.error}</p>
+                        <p className="text-xs text-muted-foreground break-all">{testResult.error}</p>
                       </div>
                     </div>
                   </div>
