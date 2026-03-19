@@ -62,7 +62,9 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [testState, setTestState] = useState<TestState>("idle");
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+  
   const selectedModel = customModel || model;
 
   const runTest = useCallback(async () => {
