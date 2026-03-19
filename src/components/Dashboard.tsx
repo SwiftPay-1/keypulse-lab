@@ -7,9 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Key, ArrowLeft, Check, X, AlertTriangle,
-  Loader2, ChevronDown, ExternalLink, Sparkles
+  Loader2, ChevronDown, ExternalLink, Sparkles, LogOut, UserCircle
 } from "lucide-react";
 import { ProviderLogo } from "./ProviderLogo";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardProps {
   onBack: () => void;
@@ -60,7 +62,9 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [testState, setTestState] = useState<TestState>("idle");
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+  
   const selectedModel = customModel || model;
 
   const runTest = useCallback(async () => {
@@ -131,6 +135,25 @@ export function Dashboard({ onBack }: DashboardProps) {
               <Sparkles className="w-4 h-4 text-primary" />
               <h1 className="text-lg font-bold text-foreground">KeyPulse</h1>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <div className="flex items-center gap-2">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-border/50" />
+                ) : (
+                  <UserCircle className="w-7 h-7 text-muted-foreground" />
+                )}
+                <span className="text-sm text-foreground font-medium hidden sm:block">{profile?.username || user.email}</span>
+                <button onClick={signOut} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary/50" title="Sign out">
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => navigate("/auth")} className="text-sm text-primary hover:underline font-medium">
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </header>
