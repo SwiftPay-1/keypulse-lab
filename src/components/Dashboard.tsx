@@ -10,6 +10,8 @@ import {
   Loader2, ChevronDown, ExternalLink, Sparkles, LogOut, UserCircle
 } from "lucide-react";
 import { ProviderLogo } from "./ProviderLogo";
+import { TestStatusMessages } from "./TestStatusMessages";
+import { ResultSkeleton } from "./ResultSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
@@ -254,34 +256,71 @@ export function Dashboard({ onBack }: DashboardProps) {
 
               {/* Test Button */}
               <motion.button
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                whileHover={{ scale: 1.01, boxShadow: "0 0 30px -5px hsl(var(--primary) / 0.4)" }}
+                whileTap={{ scale: 0.98 }}
                 onClick={runTest}
                 disabled={testState === "testing"}
-                className="w-full rounded-xl py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60 transition-all"
+                className="w-full rounded-xl py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60 transition-all relative overflow-hidden"
                 style={{
                   background: "linear-gradient(135deg, hsl(263.4, 70%, 50.4%), hsl(199, 89%, 48%))",
                 }}
               >
-                {testState === "testing" ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Validating...
-                  </span>
-                ) : (
-                  "Test API Key"
+                {testState === "testing" && (
+                  <motion.div
+                    className="absolute inset-0 bg-white/10"
+                    animate={{ opacity: [0, 0.15, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  />
                 )}
+                <AnimatePresence mode="wait">
+                  {testState === "testing" ? (
+                    <motion.span
+                      key="testing"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="inline-flex items-center">
+                        Testing
+                        <motion.span
+                          animate={{ opacity: [0, 1, 0] }}
+                          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                        >...</motion.span>
+                      </span>
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="idle"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                    >
+                      Test API Key
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </motion.button>
+
+              {/* Status Messages */}
+              <TestStatusMessages active={testState === "testing"} />
             </div>
+
+            {/* Loading Skeleton */}
+            <AnimatePresence>
+              {testState === "testing" && <ResultSkeleton />}
+            </AnimatePresence>
 
             {/* Results */}
             <AnimatePresence mode="wait">
               {testState === "success" && testResult && provider && (
                 <motion.div
                   key="success"
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -16 }}
+                  initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -16, filter: "blur(4px)" }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                   className="space-y-4"
                 >
                   <div className="rounded-xl border border-success/20 bg-card/60 backdrop-blur-sm p-5">
@@ -319,9 +358,10 @@ export function Dashboard({ onBack }: DashboardProps) {
               {testState === "error" && testResult && (
                 <motion.div
                   key="error"
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -16 }}
+                  initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)", x: [0, -6, 6, -4, 4, 0] }}
+                  exit={{ opacity: 0, y: -16, filter: "blur(4px)" }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                   className="space-y-4"
                 >
                   <div className="rounded-xl border border-destructive/20 bg-card/60 backdrop-blur-sm p-5">
