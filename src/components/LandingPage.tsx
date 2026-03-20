@@ -102,6 +102,17 @@ export function LandingPage({ onStart }: LandingPageProps) {
           </span>
         </motion.button>
 
+        {/* Secondary link */}
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          onClick={() => navigate("/docs")}
+          className="mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4 decoration-border hover:decoration-foreground"
+        >
+          Read API Docs
+        </motion.button>
+
         {/* Features */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
