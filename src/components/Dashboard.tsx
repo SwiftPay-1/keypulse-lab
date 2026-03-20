@@ -7,11 +7,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Key, ArrowLeft, Check, X, AlertTriangle,
-  Loader2, ChevronDown, ExternalLink, Sparkles, LogOut, UserCircle
+  Loader2, ChevronDown, ExternalLink, Sparkles, LogOut, UserCircle, BookOpen
 } from "lucide-react";
 import { ProviderLogo } from "./ProviderLogo";
 import { TestStatusMessages } from "./TestStatusMessages";
 import { ResultSkeleton } from "./ResultSkeleton";
+import { TestingOverlay } from "./TestingOverlay";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
@@ -64,6 +65,8 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [testState, setTestState] = useState<TestState>("idle");
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayResult, setOverlayResult] = useState<{ success: boolean; responseTime: number; error?: string } | null>(null);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   
@@ -85,13 +88,21 @@ export function Dashboard({ onBack }: DashboardProps) {
 
     setTestState("testing");
     setTestResult(null);
+    setShowOverlay(true);
+    setOverlayResult(null);
 
     const result = await validateApiKey(provider, apiKey, selectedModel);
+
+    const overlayRes = {
+      success: result.success,
+      responseTime: result.responseTime,
+      error: result.error,
+    };
+    setOverlayResult(overlayRes);
 
     if (result.success) {
       setTestState("success");
       setTestResult({ responseTime: result.responseTime });
-      toast.success("API Key is active and working!");
     } else {
       setTestState("error");
       setTestResult({
@@ -99,7 +110,6 @@ export function Dashboard({ onBack }: DashboardProps) {
         error: result.error || "Validation failed",
         errorType: result.errorType,
       });
-      toast.error("API Key validation failed");
     }
 
     setHistory((prev) => [
