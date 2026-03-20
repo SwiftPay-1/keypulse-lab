@@ -129,6 +129,14 @@ export function Dashboard({ onBack }: DashboardProps) {
   }, [apiKey, provider, selectedModel]);
 
   return (
+    <>
+    <TestingOverlay
+      active={showOverlay}
+      provider={provider}
+      model={selectedModel}
+      result={overlayResult}
+      onDismiss={() => setShowOverlay(false)}
+    />
     <div className="min-h-svh bg-background">
       {/* Subtle gradient overlay */}
       <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
@@ -166,6 +174,13 @@ export function Dashboard({ onBack }: DashboardProps) {
                 Sign In
               </button>
             )}
+            <button
+              onClick={() => navigate("/docs")}
+              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary/50"
+              title="API Docs"
+            >
+              <BookOpen className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>
