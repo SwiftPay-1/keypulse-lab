@@ -1,11 +1,15 @@
 import { motion } from "framer-motion";
-import { ArrowRight, Shield, Zap, Code2, Sparkles } from "lucide-react";
+import { ArrowRight, Shield, Zap, Code2, Sparkles, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LandingPageProps {
   onStart: () => void;
 }
 
 export function LandingPage({ onStart }: LandingPageProps) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   return (
     <div className="relative min-h-svh flex flex-col items-center justify-center overflow-hidden bg-background">
       {/* Subtle ambient glow */}
@@ -23,6 +27,24 @@ export function LandingPage({ onStart }: LandingPageProps) {
           backgroundSize: '60px 60px',
         }}
       />
+
+      {/* Top right Sign In */}
+      {!user && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="absolute top-5 right-5 z-20"
+        >
+          <button
+            onClick={() => navigate("/auth")}
+            className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm px-4 py-2 text-sm font-medium text-foreground hover:bg-card/80 transition-colors active:scale-[0.97]"
+          >
+            <LogIn className="w-4 h-4" />
+            Sign In
+          </button>
+        </motion.div>
+      )}
 
       <div className="relative z-10 flex flex-col items-center px-4 max-w-3xl mx-auto text-center">
         {/* Badge */}
