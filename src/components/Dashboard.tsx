@@ -439,5 +439,6 @@ export function Dashboard({ onBack }: DashboardProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }
