@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Key, ArrowLeft, Check, X, AlertTriangle,
-  Loader2, ChevronDown, ExternalLink, Sparkles, LogOut, UserCircle, BookOpen
+  Loader2, ChevronDown, ExternalLink, Sparkles, LogOut, UserCircle, BookOpen, Shield
 } from "lucide-react";
 import { ProviderLogo } from "./ProviderLogo";
 import { TestStatusMessages } from "./TestStatusMessages";
@@ -15,6 +15,11 @@ import { ResultSkeleton } from "./ResultSkeleton";
 import { TestingOverlay, type TestPhase } from "./TestingOverlay";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { QuickPresets } from "./QuickPresets";
+import { TrustBadge } from "./TrustBadge";
+import { AIErrorExplainer } from "./AIErrorExplainer";
+import { CopyButton } from "./CopyButton";
+import { MultiTestPanel } from "./MultiTestPanel";
 
 interface DashboardProps {
   onBack: () => void;
@@ -24,9 +29,23 @@ type TestState = "idle" | "testing" | "success" | "error";
 
 interface TestResult {
   responseTime: number;
+  statusCode?: number;
   error?: string;
   errorType?: string;
 }
+
+const statusExplanations: Record<number, string> = {
+  200: "Request successful",
+  201: "Created successfully",
+  400: "Bad request — check parameters",
+  401: "Invalid or expired API key",
+  402: "Payment required — add credits",
+  403: "Forbidden — insufficient permissions",
+  404: "Model or endpoint not found",
+  429: "Rate limit exceeded",
+  500: "Server error — try again later",
+  503: "Service unavailable",
+};
 
 const errorSuggestions: Record<string, { message: string; link?: string }[]> = {
   invalid_key: [
@@ -93,18 +112,13 @@ export function Dashboard({ onBack }: DashboardProps) {
     setOverlayResult(null);
     setTestPhase("connecting");
 
-    // Phase 1: Connecting
     await new Promise((r) => setTimeout(r, 100));
     setTestPhase("authenticating");
 
-    // Phase 2: Authenticating - start real API call
     const result = await validateApiKey(provider, apiKey, selectedModel);
 
-    // Phase 3: Validating response
     setTestPhase("validating");
     await new Promise((r) => setTimeout(r, 400));
-
-    // Phase 4: Done
     setTestPhase("done");
 
     const overlayRes = {
@@ -116,11 +130,12 @@ export function Dashboard({ onBack }: DashboardProps) {
 
     if (result.success) {
       setTestState("success");
-      setTestResult({ responseTime: result.responseTime });
+      setTestResult({ responseTime: result.responseTime, statusCode: result.statusCode });
     } else {
       setTestState("error");
       setTestResult({
         responseTime: result.responseTime,
+        statusCode: result.statusCode,
         error: result.error || "Validation failed",
         errorType: result.errorType,
       });
@@ -136,11 +151,19 @@ export function Dashboard({ onBack }: DashboardProps) {
         maskedKey: maskApiKey(apiKey),
         success: result.success,
         responseTime: result.responseTime,
+        statusCode: result.statusCode,
         timestamp: new Date(),
       },
       ...prev.slice(0, 9),
     ]);
   }, [apiKey, provider, selectedModel]);
+
+  const handlePresetSelect = (p: Provider, m: string) => {
+    setProvider(p);
+    setModel(m);
+    setCustomModel("");
+    toast.success(`Preset loaded: ${p.name} / ${m}`);
+  };
 
   return (
     <>
@@ -203,9 +226,11 @@ export function Dashboard({ onBack }: DashboardProps) {
       {/* Main content */}
       <div className="relative z-10 flex items-start justify-center min-h-[calc(100svh-57px)] px-4 py-6 sm:py-10">
         <div className="w-full max-w-xl space-y-4">
+          {/* Quick Presets */}
+          <QuickPresets onSelect={handlePresetSelect} />
+
           {/* Main Console */}
           <div className="space-y-4">
-            {/* Single Card Container for all inputs */}
             <div
               className={`rounded-2xl border bg-card/60 backdrop-blur-sm p-5 sm:p-6 space-y-5 transition-all duration-300 ${
                 testState === "testing" ? "border-primary/50 shadow-[0_0_20px_-3px_hsl(var(--primary)/0.25)]" :
@@ -220,7 +245,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                   API Key
                 </label>
                 <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-secondary/20 px-4 py-3 focus-within:border-primary/50 transition-colors">
-                  <Key className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <Shield className="w-4 h-4 text-success/60 shrink-0" />
                   <input
                     type="password"
                     value={apiKey}
@@ -229,6 +254,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                     className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/40"
                     onKeyDown={(e) => e.key === "Enter" && runTest()}
                   />
+                  {apiKey && <CopyButton value={maskApiKey(apiKey)} label="Copy masked key" />}
                 </div>
               </div>
 
@@ -343,6 +369,9 @@ export function Dashboard({ onBack }: DashboardProps) {
                 </AnimatePresence>
               </motion.button>
 
+              {/* Trust Badge */}
+              <TrustBadge />
+
               {/* Status Messages */}
               <TestStatusMessages active={testState === "testing"} />
             </div>
@@ -364,16 +393,22 @@ export function Dashboard({ onBack }: DashboardProps) {
                   className="space-y-4"
                 >
                   <div className="rounded-xl border border-success/20 bg-card/60 backdrop-blur-sm p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-9 h-9 rounded-full bg-success/10 flex items-center justify-center">
-                        <Check className="w-4 h-4 text-success" />
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-success/10 flex items-center justify-center">
+                          <Check className="w-4 h-4 text-success" />
+                        </div>
+                        <div>
+                          <h3 className="text-foreground font-semibold text-sm">API Key is Active</h3>
+                          <p className="text-xs text-muted-foreground">Validated successfully via live request</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-foreground font-semibold text-sm">API Key is Active</h3>
-                        <p className="text-xs text-muted-foreground">Validated successfully via live request</p>
-                      </div>
+                      <CopyButton
+                        value={`Provider: ${provider.name}\nModel: ${selectedModel}\nStatus: ✅ Active\nResponse: ${testResult.responseTime}ms\nHTTP: ${testResult.statusCode || 200}`}
+                        label="Copy result"
+                      />
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-4 gap-3">
                       <div className="bg-secondary/30 rounded-lg p-3">
                         <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Provider</p>
                         <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
@@ -388,6 +423,13 @@ export function Dashboard({ onBack }: DashboardProps) {
                       <div className="bg-secondary/30 rounded-lg p-3">
                         <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Response</p>
                         <p className="text-xs font-medium text-success">{testResult.responseTime}ms</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-lg p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">HTTP</p>
+                        <p className="text-xs font-medium text-success font-mono">{testResult.statusCode || 200}</p>
+                        <p className="text-[9px] text-success/70 mt-0.5">
+                          {statusExplanations[testResult.statusCode || 200] || "OK"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -405,16 +447,42 @@ export function Dashboard({ onBack }: DashboardProps) {
                   className="space-y-4"
                 >
                   <div className="rounded-xl border border-destructive/20 bg-card/60 backdrop-blur-sm p-5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
-                        <X className="w-4 h-4 text-destructive" />
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
+                          <X className="w-4 h-4 text-destructive" />
+                        </div>
+                        <div>
+                          <h3 className="text-foreground font-semibold text-sm">Invalid or Not Working</h3>
+                          <p className="text-xs text-muted-foreground break-all">{testResult.error}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-foreground font-semibold text-sm">Invalid or Not Working</h3>
-                        <p className="text-xs text-muted-foreground break-all">{testResult.error}</p>
+                      <CopyButton value={testResult.error || ""} label="Copy error" />
+                    </div>
+                    {/* Status code + response time */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-secondary/30 rounded-lg p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">HTTP Status</p>
+                        <p className="text-xs font-medium text-destructive font-mono">{testResult.statusCode || "N/A"}</p>
+                        {testResult.statusCode && (
+                          <p className="text-[9px] text-destructive/70 mt-0.5">
+                            {statusExplanations[testResult.statusCode] || "Error"}
+                          </p>
+                        )}
+                      </div>
+                      <div className="bg-secondary/30 rounded-lg p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Response</p>
+                        <p className="text-xs font-medium text-foreground">{testResult.responseTime}ms</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-lg p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Error Type</p>
+                        <p className="text-xs font-medium text-destructive capitalize">{testResult.errorType?.replace(/_/g, " ") || "Unknown"}</p>
                       </div>
                     </div>
                   </div>
+
+                  {/* AI Error Explainer */}
+                  {testResult.error && <AIErrorExplainer error={testResult.error} />}
 
                   {testResult.errorType && errorSuggestions[testResult.errorType] && (
                     <div className="rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm p-5">
@@ -442,11 +510,15 @@ export function Dashboard({ onBack }: DashboardProps) {
             </AnimatePresence>
           </div>
 
+          {/* Multi-Test Mode */}
+          <MultiTestPanel sharedApiKey={apiKey} />
+
+          {/* History */}
           <div>
-              <label className="text-xs font-medium text-muted-foreground mb-3 block uppercase tracking-wider">
-                History
-              </label>
-              <HistoryPanel entries={history} onClear={() => setHistory([])} />
+            <label className="text-xs font-medium text-muted-foreground mb-3 block uppercase tracking-wider">
+              History
+            </label>
+            <HistoryPanel entries={history} onClear={() => setHistory([])} />
           </div>
         </div>
       </div>
