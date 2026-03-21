@@ -201,8 +201,8 @@ export function Dashboard({ onBack }: DashboardProps) {
       </header>
 
       {/* Main content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 py-6 sm:py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="relative z-10 flex items-start justify-center min-h-[calc(100svh-57px)] px-4 py-6 sm:py-10">
+        <div className="w-full max-w-xl space-y-4">
           {/* Main Console */}
           <div className="lg:col-span-8 space-y-4">
             {/* Single Card Container for all inputs */}
