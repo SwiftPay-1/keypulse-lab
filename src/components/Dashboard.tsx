@@ -204,7 +204,7 @@ export function Dashboard({ onBack }: DashboardProps) {
       <div className="relative z-10 flex items-start justify-center min-h-[calc(100svh-57px)] px-4 py-6 sm:py-10">
         <div className="w-full max-w-xl space-y-4">
           {/* Main Console */}
-          <div className="lg:col-span-8 space-y-4">
+          <div className="space-y-4">
             {/* Single Card Container for all inputs */}
             <div
               className={`rounded-2xl border bg-card/60 backdrop-blur-sm p-5 sm:p-6 space-y-5 transition-all duration-300 ${
