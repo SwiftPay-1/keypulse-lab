@@ -211,7 +211,7 @@ export async function validateApiKey(
   provider: Provider,
   apiKey: string,
   model?: string
-): Promise<{ success: boolean; responseTime: number; error?: string; errorType?: string }> {
+): Promise<{ success: boolean; responseTime: number; error?: string; errorType?: string; statusCode?: number }> {
   const startTime = performance.now();
 
   if (!provider.testEndpoint) {
@@ -262,7 +262,7 @@ export async function validateApiKey(
     const responseTime = Math.round(performance.now() - startTime);
 
     if (response.ok || response.status === 200 || response.status === 201) {
-      return { success: true, responseTime };
+      return { success: true, responseTime, statusCode: response.status };
     }
 
     // Parse error
@@ -286,7 +286,7 @@ export async function validateApiKey(
       errorType = "no_credits";
     }
 
-    return { success: false, responseTime, error: errorMessage, errorType };
+    return { success: false, responseTime, error: errorMessage, errorType, statusCode: response.status };
   } catch (err) {
     const responseTime = Math.round(performance.now() - startTime);
     const message = err instanceof Error ? err.message : "Unknown error";
