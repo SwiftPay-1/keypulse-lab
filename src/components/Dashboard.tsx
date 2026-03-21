@@ -12,7 +12,7 @@ import {
 import { ProviderLogo } from "./ProviderLogo";
 import { TestStatusMessages } from "./TestStatusMessages";
 import { ResultSkeleton } from "./ResultSkeleton";
-import { TestingOverlay } from "./TestingOverlay";
+import { TestingOverlay, type TestPhase } from "./TestingOverlay";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
@@ -67,6 +67,7 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayResult, setOverlayResult] = useState<{ success: boolean; responseTime: number; error?: string } | null>(null);
+  const [testPhase, setTestPhase] = useState<TestPhase>("idle");
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   
@@ -90,8 +91,21 @@ export function Dashboard({ onBack }: DashboardProps) {
     setTestResult(null);
     setShowOverlay(true);
     setOverlayResult(null);
+    setTestPhase("connecting");
 
+    // Phase 1: Connecting
+    await new Promise((r) => setTimeout(r, 100));
+    setTestPhase("authenticating");
+
+    // Phase 2: Authenticating - start real API call
     const result = await validateApiKey(provider, apiKey, selectedModel);
+
+    // Phase 3: Validating response
+    setTestPhase("validating");
+    await new Promise((r) => setTimeout(r, 400));
+
+    // Phase 4: Done
+    setTestPhase("done");
 
     const overlayRes = {
       success: result.success,
@@ -134,8 +148,9 @@ export function Dashboard({ onBack }: DashboardProps) {
       active={showOverlay}
       provider={provider}
       model={selectedModel}
+      phase={testPhase}
       result={overlayResult}
-      onDismiss={() => setShowOverlay(false)}
+      onDismiss={() => { setShowOverlay(false); setTestPhase("idle"); }}
     />
     <div className="min-h-svh bg-background">
       {/* Subtle gradient overlay */}
