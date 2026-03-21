@@ -1,76 +1,90 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
-import { Loader2, Check, X, Wifi, ShieldCheck, FileSearch } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Loader2, Check, X, Wifi, ShieldCheck, FileSearch, Zap } from "lucide-react";
 import { ProviderLogo } from "./ProviderLogo";
 import { type Provider } from "@/data/providers";
-import { Progress } from "@/components/ui/progress";
+
+export type TestPhase = "idle" | "connecting" | "authenticating" | "validating" | "done";
 
 const steps = [
-  { label: "Connecting to API...", icon: Wifi, threshold: 15 },
-  { label: "Authenticating key...", icon: ShieldCheck, threshold: 45 },
-  { label: "Validating response...", icon: FileSearch, threshold: 75 },
-  { label: "Finalizing...", icon: Loader2, threshold: 95 },
+  { label: "Connecting to API...", icon: Wifi, phase: "connecting" as TestPhase },
+  { label: "Authenticating key...", icon: ShieldCheck, phase: "authenticating" as TestPhase },
+  { label: "Validating response...", icon: FileSearch, phase: "validating" as TestPhase },
+  { label: "Complete", icon: Zap, phase: "done" as TestPhase },
 ];
+
+const phaseProgress: Record<TestPhase, number> = {
+  idle: 0,
+  connecting: 15,
+  authenticating: 45,
+  validating: 75,
+  done: 100,
+};
 
 interface TestingOverlayProps {
   active: boolean;
   provider: Provider | null;
   model: string;
+  phase: TestPhase;
   result: { success: boolean; responseTime: number; error?: string } | null;
   onDismiss: () => void;
 }
 
-export function TestingOverlay({ active, provider, model, result, onDismiss }: TestingOverlayProps) {
-  const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<"testing" | "done">("testing");
+export function TestingOverlay({ active, provider, model, phase, result, onDismiss }: TestingOverlayProps) {
+  const [displayProgress, setDisplayProgress] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Smoothly animate progress toward target based on phase
   useEffect(() => {
     if (!active) {
-      setProgress(0);
-      setPhase("testing");
+      setDisplayProgress(0);
+      setShowResult(false);
       return;
     }
 
-    setPhase("testing");
-    setProgress(0);
+    const target = phaseProgress[phase];
 
-    // Simulate smooth progress that slows down near end
-    const intervals = [
-      { target: 20, duration: 400 },
-      { target: 45, duration: 600 },
-      { target: 70, duration: 800 },
-      { target: 85, duration: 1000 },
-      { target: 92, duration: 1500 },
-    ];
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
 
-    let currentTarget = 0;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    let elapsed = 0;
+    // Animate toward target smoothly
+    intervalRef.current = setInterval(() => {
+      setDisplayProgress((prev) => {
+        if (prev >= target) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          return target;
+        }
+        // Move faster when far from target, slower when close
+        const diff = target - prev;
+        const step = Math.max(0.5, diff * 0.15);
+        return Math.min(prev + step, target);
+      });
+    }, 30);
 
-    intervals.forEach((step) => {
-      elapsed += step.duration;
-      timers.push(
-        setTimeout(() => {
-          currentTarget = step.target;
-          setProgress(currentTarget);
-        }, elapsed)
-      );
-    });
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [active, phase]);
 
-    return () => timers.forEach(clearTimeout);
-  }, [active]);
-
-  // When result arrives, jump to 100%
+  // Show result card after progress hits 100
   useEffect(() => {
-    if (result && active) {
-      setProgress(100);
-      const t = setTimeout(() => setPhase("done"), 500);
+    if (result && displayProgress >= 99) {
+      const t = setTimeout(() => setShowResult(true), 300);
       return () => clearTimeout(t);
     }
-  }, [result, active]);
+  }, [result, displayProgress]);
 
-  const currentStep = steps.findIndex((s) => progress < s.threshold);
-  const activeStep = currentStep === -1 ? steps.length - 1 : currentStep;
+  const getActiveStepIndex = () => {
+    const idx = steps.findIndex((s) => s.phase === phase);
+    return idx === -1 ? 0 : idx;
+  };
+
+  const activeStep = getActiveStepIndex();
 
   return (
     <AnimatePresence>
@@ -81,7 +95,7 @@ export function TestingOverlay({ active, provider, model, result, onDismiss }: T
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-[100] flex items-center justify-center"
-          onClick={phase === "done" ? onDismiss : undefined}
+          onClick={showResult ? onDismiss : undefined}
         >
           {/* Backdrop */}
           <motion.div
@@ -100,7 +114,7 @@ export function TestingOverlay({ active, provider, model, result, onDismiss }: T
             className="relative z-10 w-full max-w-md mx-4 rounded-2xl border border-border/50 bg-card shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top glow */}
+            {/* Top glow bar */}
             <div className="absolute top-0 left-0 right-0 h-1">
               <motion.div
                 className="h-full rounded-full"
@@ -108,9 +122,9 @@ export function TestingOverlay({ active, provider, model, result, onDismiss }: T
                   background: result?.success === false
                     ? "hsl(var(--destructive))"
                     : "linear-gradient(90deg, hsl(263.4, 70%, 50.4%), hsl(199, 89%, 48%))",
-                  width: `${progress}%`,
                 }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
+                animate={{ width: `${displayProgress}%` }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
               />
             </div>
 
@@ -132,7 +146,7 @@ export function TestingOverlay({ active, provider, model, result, onDismiss }: T
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-muted-foreground font-medium">Progress</span>
-                  <span className="text-xs font-bold text-foreground tabular-nums">{Math.round(progress)}%</span>
+                  <span className="text-xs font-bold text-foreground tabular-nums">{Math.round(displayProgress)}%</span>
                 </div>
                 <div className="h-2.5 w-full rounded-full bg-secondary/50 overflow-hidden">
                   <motion.div
@@ -144,8 +158,8 @@ export function TestingOverlay({ active, provider, model, result, onDismiss }: T
                         ? "hsl(var(--success))"
                         : "linear-gradient(90deg, hsl(263.4, 70%, 50.4%), hsl(199, 89%, 48%))",
                     }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                    animate={{ width: `${displayProgress}%` }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
                   />
                 </div>
               </div>
@@ -154,8 +168,8 @@ export function TestingOverlay({ active, provider, model, result, onDismiss }: T
               <div className="space-y-3 mb-6">
                 {steps.map((step, i) => {
                   const StepIcon = step.icon;
-                  const isDone = progress >= step.threshold;
-                  const isActive = i === activeStep && phase === "testing";
+                  const isDone = i < activeStep || (phase === "done");
+                  const isActive = i === activeStep && phase !== "done";
 
                   return (
                     <motion.div
@@ -194,7 +208,7 @@ export function TestingOverlay({ active, provider, model, result, onDismiss }: T
 
               {/* Result */}
               <AnimatePresence>
-                {phase === "done" && result && (
+                {showResult && result && (
                   <motion.div
                     initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
