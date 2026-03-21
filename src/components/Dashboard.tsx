@@ -442,14 +442,11 @@ export function Dashboard({ onBack }: DashboardProps) {
             </AnimatePresence>
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-4">
-            <div className="sticky top-8">
+          <div>
               <label className="text-xs font-medium text-muted-foreground mb-3 block uppercase tracking-wider">
                 History
               </label>
               <HistoryPanel entries={history} onClear={() => setHistory([])} />
-            </div>
           </div>
         </div>
       </div>
