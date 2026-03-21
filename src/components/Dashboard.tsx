@@ -201,10 +201,10 @@ export function Dashboard({ onBack }: DashboardProps) {
       </header>
 
       {/* Main content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 py-6 sm:py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="relative z-10 flex items-start justify-center min-h-[calc(100svh-57px)] px-4 py-6 sm:py-10">
+        <div className="w-full max-w-xl space-y-4">
           {/* Main Console */}
-          <div className="lg:col-span-8 space-y-4">
+          <div className="space-y-4">
             {/* Single Card Container for all inputs */}
             <div
               className={`rounded-2xl border bg-card/60 backdrop-blur-sm p-5 sm:p-6 space-y-5 transition-all duration-300 ${
@@ -442,14 +442,11 @@ export function Dashboard({ onBack }: DashboardProps) {
             </AnimatePresence>
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-4">
-            <div className="sticky top-8">
+          <div>
               <label className="text-xs font-medium text-muted-foreground mb-3 block uppercase tracking-wider">
                 History
               </label>
               <HistoryPanel entries={history} onClear={() => setHistory([])} />
-            </div>
           </div>
         </div>
       </div>
