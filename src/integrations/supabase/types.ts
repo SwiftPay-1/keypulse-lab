@@ -41,6 +41,112 @@ export type Database = {
         }
         Relationships: []
       }
+      project_api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          masked_key: string
+          project_id: string
+          provider: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          masked_key: string
+          project_id: string
+          provider: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          masked_key?: string
+          project_id?: string
+          provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_api_keys_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_test_results: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          model: string
+          project_id: string
+          provider: string
+          response_time: number
+          status_code: number | null
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          model: string
+          project_id: string
+          provider: string
+          response_time: number
+          status_code?: number | null
+          success: boolean
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string
+          project_id?: string
+          provider?: string
+          response_time?: number
+          status_code?: number | null
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_test_results_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
