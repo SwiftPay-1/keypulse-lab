@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ProviderSelector } from "./ProviderSelector";
 import { CodeOutput } from "./CodeOutput";
 import { HistoryPanel, type HistoryEntry } from "./HistoryPanel";
@@ -20,6 +20,11 @@ import { TrustBadge } from "./TrustBadge";
 import { AIErrorExplainer } from "./AIErrorExplainer";
 import { CopyButton } from "./CopyButton";
 import { MultiTestPanel } from "./MultiTestPanel";
+import { ExportShareButtons } from "./ExportShareButtons";
+import { DemoMode } from "./DemoMode";
+import { BestProviderCard } from "./BestProviderCard";
+import { ProjectMode } from "./ProjectMode";
+import { Footer } from "./Footer";
 
 interface DashboardProps {
   onBack: () => void;
@@ -91,6 +96,34 @@ export function Dashboard({ onBack }: DashboardProps) {
   const navigate = useNavigate();
   
   const selectedModel = customModel || model;
+
+  // Keyboard shortcut: Ctrl+Enter to run all tests
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        runTest();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const currentResultForProject = testState === "success" || testState === "error"
+    ? {
+        provider: provider?.name || "",
+        model: selectedModel,
+        success: testState === "success",
+        responseTime: testResult?.responseTime || 0,
+        statusCode: testResult?.statusCode,
+        error: testResult?.error,
+      }
+    : null;
+
+  const exportData = currentResultForProject ? {
+    ...currentResultForProject,
+    timestamp: new Date().toISOString(),
+  } : null;
 
   const runTest = useCallback(async () => {
     if (!apiKey.trim()) {
@@ -393,7 +426,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                   className="space-y-4"
                 >
                   <div className="rounded-xl border border-success/20 bg-card/60 backdrop-blur-sm p-5">
-                    <div className="flex items-center justify-between mb-4">
+                   <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-success/10 flex items-center justify-center">
                           <Check className="w-4 h-4 text-success" />
@@ -403,10 +436,13 @@ export function Dashboard({ onBack }: DashboardProps) {
                           <p className="text-xs text-muted-foreground">Validated successfully via live request</p>
                         </div>
                       </div>
-                      <CopyButton
-                        value={`Provider: ${provider.name}\nModel: ${selectedModel}\nStatus: ✅ Active\nResponse: ${testResult.responseTime}ms\nHTTP: ${testResult.statusCode || 200}`}
-                        label="Copy result"
-                      />
+                      <div className="flex items-center gap-1">
+                        {exportData && <ExportShareButtons data={exportData} />}
+                        <CopyButton
+                          value={`Provider: ${provider.name}\nModel: ${selectedModel}\nStatus: ✅ Active\nResponse: ${testResult.responseTime}ms\nHTTP: ${testResult.statusCode || 200}`}
+                          label="Copy result"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-4 gap-3">
                       <div className="bg-secondary/30 rounded-lg p-3">
@@ -446,7 +482,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                   transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                   className="space-y-4"
                 >
-                  <div className="rounded-xl border border-destructive/20 bg-card/60 backdrop-blur-sm p-5">
+                   <div className="rounded-xl border border-destructive/20 bg-card/60 backdrop-blur-sm p-5">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -457,7 +493,10 @@ export function Dashboard({ onBack }: DashboardProps) {
                           <p className="text-xs text-muted-foreground break-all">{testResult.error}</p>
                         </div>
                       </div>
-                      <CopyButton value={testResult.error || ""} label="Copy error" />
+                      <div className="flex items-center gap-1">
+                        {exportData && <ExportShareButtons data={exportData} />}
+                        <CopyButton value={testResult.error || ""} label="Copy error" />
+                      </div>
                     </div>
                     {/* Status code + response time */}
                     <div className="grid grid-cols-3 gap-3">
@@ -510,8 +549,24 @@ export function Dashboard({ onBack }: DashboardProps) {
             </AnimatePresence>
           </div>
 
+          {/* Demo Mode */}
+          {testState === "idle" && (
+            <DemoMode onTryDemo={() => {}} />
+          )}
+
+          {/* Best Provider Recommendation */}
+          <BestProviderCard entries={history} />
+
           {/* Multi-Test Mode */}
           <MultiTestPanel sharedApiKey={apiKey} />
+
+          {/* Project Mode */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-3 block uppercase tracking-wider">
+              Project Mode
+            </label>
+            <ProjectMode currentResult={currentResultForProject} />
+          </div>
 
           {/* History */}
           <div>
@@ -522,6 +577,9 @@ export function Dashboard({ onBack }: DashboardProps) {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <Footer />
     </div>
     </>
   );
